@@ -30,10 +30,64 @@ module BBMB
         @persistence = persistence
         @app = app
       end
+      def invoice(range)
+        Invoicer.run(range)
+      rescue Exception => e
+        Mail.notify_error(e)
+      end
       def update
         Updater.run
       rescue Exception => e
         Mail.notify_error(e)
+      end
+      def inject_order(customer_id, products, infos, opts={})
+        @app.inject_order(customer_id, products, infos, opts)
+      end
+      def rename_user(old_name, new_name)
+        @app.rename_user(old_name, new_name)
+      end
+      def run_invoicer
+        SBSM.debug("run_invoicer starting")
+        @invoicer ||= Thread.new {
+          Thread.current.abort_on_exception = true
+          loop {
+            today = Date.today
+            day = today >> 1
+            start = Time.local(today.year, today.month)
+            now = Time.now
+            at = Time.local(day.year, day.month)
+            secs = at - now
+            SBSM.debug("invoicer") {
+              "sleeping %.2f seconds" % secs
+            }
+            sleep(secs)
+            SBSM.debug("invoice starting")
+            invoice(start...at)
+            SBSM.debug("invoice finished")
+          }
+        }
+      end
+      def run_updater
+        run_only_once_at_startup = false
+        SBSM.debug("updater") { "run_updater run_only_once_at_startup? #{run_only_once_at_startup} " }
+        @updater ||= Thread.new {
+          loop {
+            day = Date.today
+            now = Time.now
+            if(now.hour >= BBMB.config.update_hour)
+              day += 1
+            end
+            at = Time.local(day.year, day.month, day.day, BBMB.config.update_hour)
+            secs = at - now
+            SBSM.debug("updater") { "sleeping %.2f seconds. run_only_once_at_startup #{run_only_once_at_startup}" % secs  }
+            if run_only_once_at_startup then puts "Skipped sleeping #{secs}" else sleep(secs) end
+
+            SBSM.debug("update starting")
+            update
+            SBSM.debug("update finished")
+            Thread.abort if run_only_once_at_startup
+          }
+        }
       end
     end
     class RackInterface < SBSM::RackInterface
@@ -61,20 +115,6 @@ module BBMB
               validator: validator,
               cookie_name: 'virbac.bbmb'
               )
-      end
-      if false
-      def inject_order(customer_id, products, infos, opts={})
-        @app.inject_order(customer_id, products, infos, opts)
-      end
-      def run_invoicer
-        @app.run_invoicer
-      end
-      def run_updater
-        @app.run_updater
-      end
-      def rename_user(old_name, new_name)
-        @app.rename_user(old_name, new_name)
-      end
       end
       def inject_order(customer_id, products, infos, opts={})
         customer = Model::Customer.find_by_customer_id(customer_id) \
@@ -121,11 +161,6 @@ module BBMB
         end
         { :order_id => order.order_id, :products => products }
       end
-      def invoice(range)
-        Invoicer.run(range)
-      rescue Exception => e
-        Mail.notify_error(e)
-      end
       def login(email, pass)
           session = BBMB.auth.login(email, pass, BBMB.config.auth_domain)
           Html::Util::KnownUser.new(session)
@@ -143,49 +178,6 @@ module BBMB
             session.rename(old_name, new_name)
           end
         end
-      end
-      def run_invoicer
-        SBSM.debug("run_invoicer starting")
-        @invoicer ||= Thread.new {
-          Thread.current.abort_on_exception = true
-          loop {
-            today = Date.today
-            day = today >> 1
-            start = Time.local(today.year, today.month)
-            now = Time.now
-            at = Time.local(day.year, day.month)
-            secs = at - now
-            SBSM.debug("invoicer") {
-              "sleeping %.2f seconds" % secs
-            }
-            sleep(secs)
-            SBSM.debug("invoice starting")
-            invoice(start...at)
-            SBSM.debug("invoice finished")
-          }
-        }
-      end
-      def run_updater
-        run_only_once_at_startup = false
-        SBSM.debug("updater") { "run_updater run_only_once_at_startup? #{run_only_once_at_startup} " }
-        @updater ||= Thread.new {
-          loop {
-            day = Date.today
-            now = Time.now
-            if(now.hour >= BBMB.config.update_hour)
-              day += 1
-            end
-            at = Time.local(day.year, day.month, day.day, BBMB.config.update_hour)
-            secs = at - now
-            SBSM.debug("updater") { "sleeping %.2f seconds. run_only_once_at_startup #{run_only_once_at_startup}" % secs  }
-            if run_only_once_at_startup then puts "Skipped sleeping #{secs}" else sleep(secs) end
-
-            SBSM.debug("update starting")
-            update
-            SBSM.debug("update finished")
-            Thread.abort if run_only_once_at_startup
-          }
-        }
       end
       def send_order order, customer
         begin
@@ -212,11 +204,6 @@ module BBMB
           err.message << " (Email: #{customer.email} - Customer-Id: #{customer.customer_id})"
           BBMB::Util::Mail.notify_error(err)
         end
-      end
-      def update
-        Updater.run
-      rescue Exception => e
-        Mail.notify_error(e)
       end
     end
     class App < SBSM::App
