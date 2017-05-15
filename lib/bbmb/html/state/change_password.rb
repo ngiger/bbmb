@@ -24,7 +24,7 @@ class ChangePassword < Global
       update_user input
       unless(error?)
         BBMB.persistence.save(@model)
-        return State::Info.new(@session, :message => :login_data_saved, 
+        return State::Info.new(@session, :message => :login_data_saved,
                                          :event => :home)
       end
     end
@@ -36,8 +36,8 @@ class ChangePassword < Global
     @model.protect!(:email)
     if(passhash = input.delete(:confirm_pass))
       begin
-        @session.user.set_password(email, passhash)
-      rescue Yus::YusError => e 
+        @session.auth_session.set_password(email, passhash)
+      rescue Yus::YusError => e
         @errors.store(:pass, create_error(:e_pass_not_set, :email, email))
       end
     end
