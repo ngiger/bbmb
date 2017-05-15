@@ -16,7 +16,7 @@ class Head < HtmlGrid::DivComposite
   CSS_ID_MAP = {2 => 'welcome', 1 => 'logged-in-as'}
   def logged_in_as(model)
     if(@session.logged_in?)
-      @lookandfeel.lookup(:logged_in_as, @session.user.name)
+      @lookandfeel.lookup(:logged_in_as, @session.auth_session.name)
     end
   end
   def logo(model)

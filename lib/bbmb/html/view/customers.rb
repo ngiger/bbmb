@@ -75,25 +75,6 @@ class CustomersList < HtmlGrid::List
                                         {:customer_id => model.customer_id})
     link
   end
-=begin
-  def email(model)
-    if(mail = model.email)
-      link = HtmlGrid::Link.new(:email, model, @session, self)
-      link.value = mail
-      link.href = sprintf("mailto:%s", mail)
-      link
-    end
-  end
-  def email(model)
-    EmailValue.new(model, @session, self)
-  end
-  def last_login(model)
-    DateTimeView.new(:last_login, model, @session, self)
-  end
-  def active(model)
-    model.value(:active)
-  end
-=end
   def last_login(model)
     if model.respond_to?(:last_login)
       model.last_login
@@ -102,7 +83,6 @@ class CustomersList < HtmlGrid::List
     end
   end
   def valid(model)
-    # old = @session.user.entity_valid?(model.email).to_s)
     if model.respond_to?(:valid)
       @lookandfeel.lookup(model.valid)
     elsif @session.auth_session && defined?(@session.auth_session.entity_valid?)
@@ -112,7 +92,6 @@ class CustomersList < HtmlGrid::List
     end
   rescue => error
     puts error
-    binding.pry
   end
   private
   def sort_link(header_key, matrix, component)

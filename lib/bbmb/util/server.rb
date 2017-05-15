@@ -30,15 +30,23 @@ module BBMB
       VALIDATOR = Html::Util::Validator
       attr_reader :updater, :auth
       def initialize(app: BBMB::Util::App.new,
-                     auth: DRb::DRbObject.new(nil, @config.auth_url),
+                     auth: nil,
                      validator: BBMB::Html::Util::Validator)
-        @auth = auth
+        [ File.join(Dir.pwd, 'etc', 'config.yml'),
+        ].each do |config_file|
+          if File.exist?(config_file)
+            puts "BBMB.config.load from #{config_file}"
+            BBMB.config.load (config_file)
+            break
+          end
+        end
+        @auth = DRb::DRbObject.new(nil, BBMB.config.auth_url)
+        puts "@auth is #{@auth}"
         @app = app
         super(app: app,
               session_class: BBMB::Html::Util::Session,
               unknown_user: Html::Util::KnownUser,
               validator: validator,
-              auth: auth,
               cookie_name: 'virbac.bbmb'
               )
       end
@@ -106,12 +114,11 @@ module BBMB
       rescue Exception => e
         Mail.notify_error(e)
       end
-      def login(email, pass); require 'pry'; binding.pry
+      def login(email, pass)
           session = BBMB.auth.login(email, pass, BBMB.config.auth_domain)
           Html::Util::KnownUser.new(session)
         end
         def logout(session)
-    require 'pry'; binding.pry
           BBMB.auth.logout(session)
         rescue DRb::DRbError, RangeError, NameError
         end
@@ -201,7 +208,7 @@ module BBMB
       end
     end
     class App < SBSM::App
-      def login(email, pass); require 'pry'; binding.pry
+      def login(email, pass)
         session = BBMB.auth.login(email, pass, BBMB.config.auth_domain)
         Html::Util::KnownUser.new(session)
       end

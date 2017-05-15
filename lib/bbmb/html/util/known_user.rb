@@ -37,7 +37,6 @@ class KnownUser < SBSM::User
     if defined?(yus_user) && yus_user
       allowed = yus_user.send(:allowed?, action, key)
     end if false
-    binding.pry # if action.to_s.eql?('yus_user')
     return true
     # SBSM.debug('User'+ sprintf('allowed?(%s, %s) -> %s', action, key, allowed))
     return allowed
@@ -48,7 +47,8 @@ class KnownUser < SBSM::User
     }
     allowed
   rescue => error
-    binding.pry
+    puts error
+    puts error.backtrace.join("\n")
   end
   def entity_valid?(email)
     !!(@auth_session.allowed?('edit', 'yus.entities') \
@@ -60,11 +60,9 @@ class KnownUser < SBSM::User
   end
   def get_preference(key)
     return @auth_session.get_preference(key.to_s)
-    binding.pry
     remote_call(:get_preference, key)
   end
   def remote_call(method, *args, &block)
-    # binding.pry #  auth.login ArgumentError: wrong number of arguments (given 0, expected 3)
     SBSM.debug("remote_call #{method} args #{args} block.nil? #{block.nil?}")
     if defined?(@auth_session) && @auth_session.is_a?(DRb::DRbObject)
       return @auth_session.send(method, *args, &block)
@@ -76,7 +74,7 @@ class KnownUser < SBSM::User
     SBSM.info('auth') { e }
   rescue error
     puts error
-    require 'pry'; binding.pry
+    puts error.backtrace.join("\n")
   end
   # alias :method_missing :remote_call
 end

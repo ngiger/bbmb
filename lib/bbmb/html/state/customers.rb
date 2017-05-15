@@ -72,12 +72,10 @@ module BBMB
         end
 
         def last_login
-          binding.pry
           @last_login ||= @session.user.last_login(email)
         end
 
         def valid
-          binding.pry
           @valid ||= @session.user.entity_valid?(email).to_s
         end
       end

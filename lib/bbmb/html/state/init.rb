@@ -9,7 +9,7 @@ module BBMB
     module State
       class Init < SBSM::State
         VIEW = Html::View::LoginForm
-        def login; require 'pry'; binding.pry
+        def login
           SBSM.info "BBMB::Html::Init login #{user_input(:email)} #{user_input(:pass)}  #{@user.class}"
           if(res = @session.login)
             Customers.new(@session, nil)
