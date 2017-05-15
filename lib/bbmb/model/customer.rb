@@ -23,6 +23,11 @@ class Customer
     @quotas = []
   end
   def add_quota(quota)
+    unless @quotas.is_a?(Array)
+      puts "customer #{customer_id}: Fixing quotas #{@quotas} -> []"
+      @quotas = []
+      odba_store;
+    end
     @quotas.push(quota).uniq!
     quota
   end
