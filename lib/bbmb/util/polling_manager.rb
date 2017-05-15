@@ -16,12 +16,15 @@ class FileMission
   attr_accessor :backup_dir, :delete, :directory, :glob_pattern
   def file_paths
     path = File.expand_path(@glob_pattern || '*', @directory)
-    Dir.glob(path).collect { |entry|
+    res = Dir.glob(path).collect { |entry|
       File.expand_path(entry, @directory)
     }.compact
+    puts res
+    res
   end
   def poll(&block)
-    @directory = File.expand_path(@directory, BBMB.config.bbmb_dir)
+    @directory = File.expand_path(@directory, BBMB.config.bbmb_dir) unless File.directory?(@directory) &&
+        File.absolute_path(@directory) == @directory
     file_paths.each { |path|
       poll_path(path, &block)
     }
@@ -34,7 +37,11 @@ class FileMission
     BBMB::Util::Mail.notify_error(err)
   ensure
     if(@backup_dir)
-      dir = File.expand_path(@backup_dir, BBMB.config.bbmb_dir)
+      if File.absolute_path(@backup_dir) == @backup_dir
+        dir = @backup_dir
+      else
+        dir = File.expand_path(@backup_dir, BBMB.config.bbmb_dir)
+      end
       FileUtils.mkdir_p(dir)
       FileUtils.cp(path, dir)
     end
@@ -43,7 +50,7 @@ class FileMission
     end
   end
 end
-class PopMission 
+class PopMission
   attr_accessor :host, :port, :user, :pass, :content_type
   def poll(&block)
     # puts "PopMission starts polling host #{@host}:#{@port} u: #{@user} pw: #{@pass}"

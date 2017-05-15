@@ -24,6 +24,18 @@ module BBMB
     @@persistence ||= BBMB::Persistence::ODBA
   end
   module Util
+    class Server
+      def initialize(persistence, app)
+        puts "Self #{self.class} initialize"
+        @persistence = persistence
+        @app = app
+      end
+      def update
+        Updater.run
+      rescue Exception => e
+        Mail.notify_error(e)
+      end
+    end
     class RackInterface < SBSM::RackInterface
       ENABLE_ADMIN = true
       SESSION = Html::Util::Session
@@ -41,7 +53,7 @@ module BBMB
           end
         end
         @auth = DRb::DRbObject.new(nil, BBMB.config.auth_url)
-        puts "@auth is #{@auth}"
+        puts "@auth is #{@auth} from #{self.class}"
         @app = app
         super(app: app,
               session_class: BBMB::Html::Util::Session,

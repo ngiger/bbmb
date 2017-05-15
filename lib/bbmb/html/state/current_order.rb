@@ -30,7 +30,7 @@ class CurrentOrder < Global
   end
   def commit
     ## update most recent values and ensure @model = _customer.current_order
-    do_update 
+    do_update
     if @session.lookandfeel.enabled?(:terms_of_service, false)
       if @session.user_input(:accept_terms)
         _customer.terms_last_accepted ||= Time.now

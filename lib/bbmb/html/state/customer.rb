@@ -31,9 +31,9 @@ class Customer < Global
       @cleartext = BBMB::Util::PasswordGenerator.generate(@model)
       passhash = @session.validate(:pass, @cleartext)
       begin
-        @session.user.grant(email, 'login', 
+        @session.auth_session.grant(email, 'login',
                           BBMB.config.auth_domain + '.Customer')
-        @session.user.set_password(email, passhash)
+        @session.auth_session.set_password(email, passhash)
       rescue Yus::YusError
         @errors.store(:pass, create_error(:e_pass_not_set, :pass, nil))
       end
@@ -69,7 +69,7 @@ class Customer < Global
       @errors.store(:error, create_error(:error, :error, nil))
       @errors.store(:user, create_error(:e_user_unsaved, :error, nil))
     else
-      input.each { |key, val| 
+      input.each { |key, val|
         writer = "#{key}="
         if(@model.respond_to?(writer) && @model.send(key) != val)
           @model.send(writer, val)
@@ -93,10 +93,10 @@ class Customer < Global
     @model.protect!(:email)
     if(passhash = input.delete(:confirm_pass))
       begin
-        @session.user.grant(email, 'login', 
+        @session.auth_session.grant(email, 'login',
                           BBMB.config.auth_domain + '.Customer')
-        @session.user.set_password(email, passhash)
-      rescue Yus::YusError => e 
+        @session.auth_session.set_password(email, passhash)
+      rescue Yus::YusError => e
         @errors.store(:pass, create_error(:e_pass_not_set, :email, email))
       end
     end
