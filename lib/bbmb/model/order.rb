@@ -87,7 +87,7 @@ class Order
     info
   end
   def calculate_effective_prices
-    @positions.each { |pos| 
+    @positions.each { |pos|
       pos.price_effective = price_effective(pos)
     }
   end
@@ -98,7 +98,7 @@ class Order
   def commit!(commit_id, commit_time)
     raise "can't commit empty order" if(empty?)
     calculate_effective_prices
-    @positions.each { |pos| 
+    @positions.each { |pos|
       pos.commit!
     }
     @unavailable.clear
@@ -157,8 +157,8 @@ class Order
     if(@priority)
       lines.push "238:%i" % @priority
     end
-    lines.push "250:ADE", 
-                sprintf("251:%i%05i", @customer.customer_id, @commit_id), 
+    lines.push "250:ADE",
+                sprintf("251:%i%05i", @customer.customer_id, @commit_id),
                 "300:4", "301:%s" % @commit_time.strftime('%Y%m%d')
     lines.join("\n")
   end
@@ -205,6 +205,9 @@ class Order
   end
   def total
     @positions.inject(@shipping) { |memo, pos| pos.total + memo }
+  rescue
+    SBSM.info "total: rescuing by adding 0 to memo #{memo} as total for #{order_id}"
+    return memo
   end
   def total_incl_vat
     if rate = BBMB.config.vat_rate
@@ -222,7 +225,7 @@ class Order
           @customer.customer_id,
           @customer.ean13,
           @commit_time.strftime('%d%m%Y'),
-          @commit_id, 
+          @commit_id,
           position.pcode,
           position.ean13,
           position.article_number,
