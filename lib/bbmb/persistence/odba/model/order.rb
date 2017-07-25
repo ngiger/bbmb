@@ -21,20 +21,20 @@ class Order
   def add(quantity, product)
     if(pos = __old_add__(quantity, product))
       if(quantity.zero?)
-        pos.odba_delete unless BBMB.config.persistence.eql?('none')
+        pos.odba_delete
       else
-        pos.odba_store unless BBMB.config.persistence.eql?('none')
+        pos.odba_store
       end
-      @positions.odba_store unless BBMB.config.persistence.eql?('none')
+      @positions.odba_store
       pos
     end
   end
   alias :__old_clear__ :clear
   def clear
-    @positions.each { |pos| pos.odba_delete } unless BBMB.config.persistence.eql?('none')
+    @positions.each { |pos| pos.odba_delete }
     res = __old_clear__
     @positions.odba_store
-    odba_store unless BBMB.config.persistence.eql?('none')
+    odba_store
     res
   end
   alias :__old_commit__ :commit!

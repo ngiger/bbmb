@@ -69,6 +69,8 @@ module ODBA
     def odba_store
       @odba_stored = @odba_stored.to_i.next
     end
+    def odba_delete
+    end
   end
   class Cache
     def retrieve_from_index(index_name, search_term, meta=nil)

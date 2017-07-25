@@ -10,11 +10,15 @@ module BBMB
   module Util
 
 class TestServer < Minitest::Test
+  CUSTOMER_ID = '12345'
+  CUSTOMER_EAN13 = '0987654321098'
+  COMMENT = 'My Comment'
+  REFERENCE = 'reference 76543'
+
   def setup
     require 'bbmb/util/server'
     super
     BBMB.config = $default_config.clone
-    BBMB.config.persistence = 'none'
     @rack_app = BBMB::Util::App.new
     @server = BBMB::Util::Server.new('none', @rack_app)
     Model::Customer.instances.clear
@@ -26,7 +30,7 @@ class TestServer < Minitest::Test
   end
   def test_inject_order__unknown_customer
     assert_raises(RuntimeError) {
-      @server.inject_order('12345', [], {})
+      @server.inject_order(CUSTOMER_ID, [], {})
     }
   end
   def test_inject_order
@@ -37,51 +41,23 @@ class TestServer < Minitest::Test
     pr3 = Model::Product.new 3
     pr3.ean13 = '2345678901234'
     pr3.pcode = '2345678'
-    customer = flexmock('customer')
-    flexmock(customer).should_receive(:inject_order).times(1).and_return { |order|
-      assert_instance_of(Model::Order, order)
-      ps1, ps2, ps3 = order.positions
-      assert_instance_of(Model::Order::Position, ps1)
-      assert_instance_of(Model::Order::Position, ps2)
-      assert_instance_of(Model::Order::Position, ps3)
-      assert_equal(3, ps1.quantity)
-      assert_equal(pr1, ps1.product)
-      assert_equal(4, ps2.quantity)
-      assert_equal(pr2, ps2.product)
-      assert_equal(5, ps3.quantity)
-      assert_equal(pr3, ps3.product)
-      assert_equal('My Comment', order.comment)
-      assert_equal('76543', order.reference)
-    }
+    customer = Model::Customer.new(CUSTOMER_ID)
     prods = [
       {:quantity => 3, :pcode => '1234567'},
       {:quantity => 4, :ean13 => '1234567890123'},
       {:quantity => 5, :pcode => '2345678', :ean13 => '2345678901234'},
     ]
     infos = {
-      :comment => 'My Comment',
-      :reference => '76543',
+      :comment => COMMENT,
+      :reference => REFERENCE,
     }
     customer_mock = flexmock("find_by_customer_id",  Model::Customer)
-    customer_mock.should_receive(:find_by_customer_id).and_return(customer).once
-    product_mock = flexmock("product_mock",  Model::Product)
-    product_mock.should_receive(:odba_store).at_least.once
-    product_mock.should_receive(:new).with('1234567').and_return(pr1)
-    product_mock.should_receive(:new).with('1234567890123').and_return(pr2)
-    product_mock.should_receive(:new).with('2345678901234').and_return(pr3)
-    description = flexmock('description')
-    description.should_receive(:de=).and_return('description_de')
-    description.should_receive(:de).and_return('description_de')
-    product_mock.should_receive(:description).at_least.once.and_return(description)
-    product_mock.should_receive(:article_number).at_least.once.and_return('article_number')
-    product_mock.should_receive(:price_effective).at_least.once.and_return(33)
-    product_mock.should_receive(:backorder).at_least.once
-    quota = Model::Quota.new(product_mock)
-    customer.should_receive(:quota).and_return(quota).at_least.once
-    order_mock = flexmock("order_mock",  Model::Order)
-    order_mock.should_receive(:add).once
-    skip('Too much time to fix test_inject_order')
-    @server.inject_order('12345', prods, infos)
+    customer_mock.should_receive(:find_by_customer_id).with(CUSTOMER_ID).and_return(customer).once
+    result = @server.inject_order(CUSTOMER_ID, prods, infos)
+    assert_equal("#{CUSTOMER_ID}-1", result[:order_id])
+    assert_equal(3, result[:products].size)
+    assert_equal(COMMENT, customer.archive.values.first.comment)
+    assert_equal(REFERENCE, customer.archive.values.first.reference)
   end
   def test_inject_order__customer_by_ean13
     pr1 = Model::Product.new 1
@@ -91,39 +67,37 @@ class TestServer < Minitest::Test
     pr3 = Model::Product.new 3
     pr3.ean13 = '2345678901234'
     pr3.pcode = '2345678'
-    customer = Model::Customer.new('12345')
-    customer.ean13 = '1234567890123'
-    flexmock(customer).should_receive(:inject_order).once.and_return { |order|
-      assert_instance_of(Model::Order, order)
-      ps1, ps2, ps3 = order.positions
-      assert_instance_of(Model::Order::Position, ps1)
-      assert_instance_of(Model::Order::Position, ps2)
-      assert_instance_of(Model::Order::Position, ps3)
-      assert_equal(3, ps1.quantity)
-      assert_equal(pr1, ps1.product)
-      assert_equal(4, ps2.quantity)
-      assert_equal(pr2, ps2.product)
-      assert_equal(5, ps3.quantity)
-      assert_equal(pr3, ps3.product)
-      assert_equal('My Comment', order.comment)
-      assert_equal('76543', order.reference)
-    }
+    customer = Model::Customer.new(CUSTOMER_ID)
+    customer.ean13 = CUSTOMER_EAN13
     prods = [
       {:quantity => 3, :pcode => '1234567'},
       {:quantity => 4, :ean13 => '1234567890123'},
       {:quantity => 5, :pcode => '2345678', :ean13 => '2345678901234'},
     ]
     infos = {
-      :comment => 'My Comment',
-      :reference => '76543',
+      :comment => COMMENT,
+      :reference => REFERENCE,
     }
     flexmock(BBMB::Util::Mail).should_receive(:send_order).with(BBMB::Model::Order)
     BBMB.config.mail_confirm_reply_to = 'replyto@test.org'
     BBMB.config.error_recipients = 'to@test.org'
-    skip('Too much time to fix test_inject_order__customer_by_ean13')
-    res = @server.inject_order('1234567890123', prods, infos, :deliver => true)
-    assert_equal("12345-", res[:order_id])
-    assert_equal(3, res[:products].size)
+    customer_mock = flexmock("find_by_customer_id",  Model::Customer)
+    customer_mock.should_receive(:find_by_customer_id).with(CUSTOMER_EAN13).and_return(customer).once
+    result = @server.inject_order(CUSTOMER_EAN13, prods, infos, :deliver => true)
+    assert_equal("#{CUSTOMER_ID}-1", result[:order_id])
+    assert_equal(3, result[:products].size)
+    assert_equal(3, result[:products][0][:quantity])
+    assert_equal(4, result[:products][1][:quantity])
+    assert_equal(5, result[:products][2][:quantity])
+    assert_equal(false, result[:products][0][:backorder])
+    assert_nil(result[:products][1][:backorder])
+    assert_equal(false, result[:products][2][:backorder])
+    assert_equal('pharmacode 2345678', result[:products][2][:description])
+    assert_equal(1, customer.archive.size)
+    assert_equal(1, customer.archive.keys.first)
+    assert_equal(CUSTOMER_ID, customer.customer_id)
+    assert_equal(COMMENT, customer.archive.values.first.comment)
+    assert_equal(REFERENCE, customer.archive.values.first.reference)
   end
   def test_rename_user__new
     BBMB.config = flexmock('config')
